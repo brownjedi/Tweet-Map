@@ -1,0 +1,173 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!DOCTYPE mapper PUBLIC '-//mybatis.org//DTD Mapper 3.0//EN'
+  'http://mybatis.org/dtd/mybatis-3-mapper.dtd'>
+
+
+<mapper namespace='edu.columbia.gskr.tweetmap.mybatis.mapper.TweetMapper'>
+
+    <resultMap id="HashTagResult" type="String">
+        <result column="hashTag" javaType="String"/>
+    </resultMap>
+
+    <resultMap type="Tweet" id="TweetResult">
+
+        <id property="id" column="id"/>
+        <result property="userScreenName" column="userScreenName"/>
+        <result property="userLocation" column="userLocation"/>
+        <result property="statusText" column="statusText"/>
+        <result property="latitude" column="latitude"/>
+        <result property="longitude" column="longitude"/>
+        <result property="createdDate" column="createdDate"/>
+        <result property="updatedDate" column="updatedDate"/>
+        <collection property="hashTags" resultMap='HashTagResult'/>
+
+    </resultMap>
+
+    <select id="getTweetById" parameterType="long" resultMap="TweetResult">
+        select t1.id, t1.userScreenName, t1.userLocation, t1.statusText, t1.latitude, t1.longitude, t1.createdDate, t1.updatedDate, t2.hashTag
+        from
+        (
+        select id, userScreenName, userLocation, statusText, latitude, longitude, createdDate, updatedDate
+        from Tweets where id = #{id}
+        ) as t1 left join HashTags as t2 on t1.id = t2.tweetId;
+    </select>
+
+
+    <select id="getAllTweets" resultMap="TweetResult">
+        select t1.id, t1.userScreenName, t1.userLocation, t1.statusText, t1.latitude, t1.longitude, t1.createdDate, t1.updatedDate, t2.hashTag
+        from
+        (
+        select id, userScreenName, userLocation, statusText, latitude, longitude, createdDate, updatedDate
+        from Tweets
+        ) as t1 left join HashTags as t2 on t1.id = t2.tweetId;
+    </select>
+
+
+    <select id="getTweetsLimit" parameterType="int" resultMap="TweetResult">
+        select t1.id, t1.userScreenName, t1.userLocation, t1.statusText, t1.latitude, t1.longitude, t1.createdDate, t1.updatedDate, t2.hashTag
+        from
+        (
+        select id, userScreenName, userLocation, statusText, latitude, longitude, createdDate, updatedDate
+        from Tweets
+        LIMIT #{limit}
+        ) as t1 left join HashTags as t2 on t1.id = t2.tweetId;
+    </select>
+
+
+    <select id="getTweetsByHashTag" parameterType="String" resultMap="TweetResult">
+        select t1.id, t1.userScreenName, t1.userLocation, t1.statusText, t1.latitude, t1.longitude, t1.createdDate, t1.updatedDate, t2.hashTag
+        from
+        (
+        select id, userScreenName, userLocation, statusText, latitude, longitude, createdDate, updatedDate
+        from Tweets
+        ) as t1 left join HashTags as t2 on t1.id = t2.tweetId
+        where t1.id in (
+        select distinct a.id from Tweets as a left join HashTags as b on a.id = b.tweetId
+        where b.hashTag = #{hashTag}
+        );
+    </select>
+
+
+    <select id="getAllHashTags" resultMap="HashTagResult">
+        select t1.hashTag as hashTag
+        from
+        (
+        select hashTag, count(hashTag) as cnt
+        from HashTags
+        group by hashTag
+        ) as t1
+        order by t1.cnt desc
+    </select>
+
+
+    <select id="getHashTagsLimit" parameterType="int" resultMap="HashTagResult">
+        select t1.hashTag as hashTag
+        from
+        (
+        select hashTag, count(hashTag) as cnt
+        from HashTags
+        group by hashTag
+        ) as t1
+        order by t1.cnt desc
+        LIMIT #{limit}
+    </select>
+
+
+    <update id="updateTweet" parameterType="Tweet">
+
+        UPDATE Tweets
+        SET
+        userScreenName = #{userScreenName},
+        userLocation = #{userLocation},
+        statusText = #{statusText},
+        latitude = #{latitude},
+        longitude = #{longitude},
+        createdDate = #{createdDate},
+        updatedDate = #{updatedDate}
+        WHERE id = #{id};
+
+    </update>
+
+    <delete id="deleteTweet" parameterType="Tweet">
+
+        delete from Tweets where id = #{id};
+
+    </delete>
+
+    <delete id="deleteTweetById" parameterType="long">
+
+        delete from Tweets where id = #{id};
+
+    </delete>
+
+    <delete id="deleteHashTags" parameterType="long">
+
+        delete from HashTags where tweetId = #{tweetId};
+
+    </delete>
+
+
+    <insert id="insertTweet" parameterType="Tweet" keyProperty="id">
+
+        INSERT INTO Tweets (id, userScreenName, userLocation, statusText, latitude, longitude, createdDate, updatedDate)
+        VALUES (#{id}, #{userScreenName}, #{userLocation}, #{statusText}, #{latitude}, #{longitude}, #{createdDate}, #{updatedDate})
+
+    </insert>
+
+
+    <insert id="insertHashTags" parameterType="map">
+
+        <if test="hashTags != null and hashTags.size() > 0">
+
+            INSERT INTO HashTags (tweetId, hashTag)
+            VALUES
+            <foreach item="element" index="index" collection="hashTags" separator=",">
+                (#{tweetId}, #{element})
+            </foreach>
+
+        </if>
+
+    </insert>
+
+    <select id="getTweetCount" resultType="int">
+
+        SELECT COUNT(*) as count from Tweets;
+
+    </select>
+
+    <select id="getOldestTweetId" resultType="long">
+
+        select id FROM Tweets
+        ORDER BY updatedDate ASC
+        LIMIT 1
+
+    </select>
+
+    <select id="tweetExists" resultType="boolean">
+
+        select case when count(*) > 0 then 1 else 0 end as count
+        from Tweets where id = #{id};
+
+    </select>
+
+</mapper>
