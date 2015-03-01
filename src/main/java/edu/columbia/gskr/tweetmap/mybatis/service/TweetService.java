@@ -54,12 +54,12 @@ public class TweetService {
         return tweetList;
     }
 
-    public List<Tweet> getTweetsByHashTag(String hashTag) {
+    public List<Tweet> getTweetsByHashTag(List<String> hashTags) {
         SqlSession sqlSession = MyBatisConnectionFactory.getSqlSessionFactory().openSession(TransactionIsolationLevel.READ_UNCOMMITTED);
         List<Tweet> tweetList;
         try {
             TweetMapper tweetMapper = sqlSession.getMapper(TweetMapper.class);
-            tweetList = tweetMapper.getTweetsByHashTag(hashTag);
+            tweetList = tweetMapper.getTweetsByHashTag(hashTags);
             sqlSession.commit();
         } finally {
             sqlSession.close();

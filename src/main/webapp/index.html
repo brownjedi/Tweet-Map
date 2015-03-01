@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Tweet Map">
+    <meta name="author" content="Sai Karthik Reddy Ginni">
+    <link rel="icon" href="img/favicon.ico">
+
+    <title>Tweet Map</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/chosen.min.css" rel="stylesheet">
+    <link rel="stylesheet"
+          href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.3/themes/smoothness/jquery-ui.css"/>
+
+    <!-- Custom styles for this template -->
+    <link href="css/starter-template.css" rel="stylesheet">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+</head>
+
+<body>
+
+<div class="container" id="main">
+    <div id="map-canvas"></div>
+    <div id="controls">
+        <!-- multiple dropdown -->
+        <select class="chosen-select" multiple="true" id="chz" data-placeholder=" "></select>
+        <button id="searchbutton" type="button" class="glyphicon glyphicon-search white btn"
+                aria-hidden="true"></button>
+    </div>
+</div>
+<!-- /.container -->
+
+
+<!-- Bootstrap core JavaScript
+================================================== -->
+<!-- Placed at the end of the document so the pages load faster -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+<script src="js/bootstrap.min.js"></script>
+<script src="js/chosen.jquery.min.js"></script>
+<script src="js/jquery.blockUI.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&signed_in=true&libraries=visualization"></script>
+<script>
+
+    $(document).ready(function () {
+
+        var heatmap;
+        var infowindow;
+        var markers = [];
+        var map;
+        var bounds;
+        $("#chz").chosen({max_selected_options: 10});
+        $('#searchbutton').prop('disabled', true);
+
+        initializeMaps();
+
+
+        /* google maps -----------------------------------------------------*/
+
+        function initializeMaps() {
+            var sanFrancisco = new google.maps.LatLng(37.774546, -122.433523);
+
+            var mapOptions = {
+                center: sanFrancisco,
+                scrollWheel: true,
+                zoom: 4,
+                mapTypeId: google.maps.MapTypeId.SATELLITE,
+                panControl: false,
+                zoomControl: true,
+                scaleControl: false
+            };
+
+            map = new google.maps.Map(document.getElementById("map-canvas"), mapOptions);
+
+            var pointArray = new google.maps.MVCArray([]);
+            heatmap = new google.maps.visualization.HeatmapLayer({
+                data: pointArray
+            });
+
+            heatmap.setMap(map);
+
+            heatmap.set('radius', 40);
+
+        }
+
+        /* end google maps -----------------------------------------------------*/
+
+        $.ajax({
+            type: 'GET',
+            url: 'api/tweets/hashTags',
+            beforeSend: function () {
+                $.blockUI({
+                    message: "<div class='progress progress-striped active'><div class='progress-bar' role='progressbar' aria-valuenow='100' aria-valuemin='0' aria-valuemax='100' style='width: 100%;'></div></div>",
+                    css: {
+                        border: 'none',
+                        padding: '15px',
+                        backgroundColor: '#000',
+                        '-webkit-border-radius': '10px',
+                        '-moz-border-radius': '10px',
+                        opacity: .5,
+                        color: '#fff'
+                    }
+                });
+            },
+            success: function (data) {
+
+                $("#chz").empty(); //remove all child nodes
+                $("#chz").append($("<option value=All>All</option>"));
+                if (data) {
+                    for (var i = 0; i < data.length; i++) {
+                        $("#chz").append($("<option value=" + data[i] + ">" + data[i] + "</option>"));
+                    }
+                    $('#chz').trigger("chosen:updated");
+                }
+                $.unblockUI();
+            },
+            error: function () {
+                $.unblockUI();
+            }
+        });
+
+        $('#chz').change(function () {
+            if ($(this).val()) {
+                $('#searchbutton').addClass('btn-disabled');
+                $('#searchbutton').prop('disabled', false);
+            } else {
+                $('#searchbutton').removeClass('btn-disabled');
+                $('#searchbutton').prop('disabled', true);
+            }
+        });
+
+        $('#searchbutton').click(function () {
+            var temp = $('#chz').val();
+            var output;
+            for (var i = 0; i < temp.length; i++) {
+
+                if (temp[i] == "All") {
+                    output = "";
+                    break;
+                }
+
+                if (i == 0) {
+                    output = "?hashTag=" + temp[i];
+                } else {
+                    output = output + "&hashTag=" + temp[i];
+                }
+            }
+
+            $.ajax({
+                type: 'GET',
+                url: 'api/tweets' + output,
+                beforeSend: function () {
+                    $.blockUI({
+                        message: "<div class='progress progress-striped active'><div class='progress-bar' role='progressbar' aria-valuenow='100' aria-valuemin='0' aria-valuemax='100' style='width: 100%;'></div></div>",
+                        css: {
+                            border: 'none',
+                            padding: '15px',
+                            backgroundColor: '#000',
+                            '-webkit-border-radius': '10px',
+                            '-moz-border-radius': '10px',
+                            opacity: .5,
+                            color: '#fff'
+                        }
+                    });
+                },
+                success: function (data) {
+                    var pointArray = new google.maps.MVCArray([]);
+                    bounds = new google.maps.LatLngBounds();
+                    infowindow = new google.maps.InfoWindow();
+
+                    for (var i = 0; i < markers.length; i++) {
+                        markers[i].setMap(null);
+                    }
+
+                    markers = [];
+
+                    if (data) {
+                        for (var i = 0; i < data.length; i++) {
+                            var position = new google.maps.LatLng(data[i].latitude, data[i].longitude);
+                            pointArray.push(position);
+                            bounds.extend(position);
+                            var marker = new google.maps.Marker({
+                                position: position,
+                                map: map,
+                                animation: google.maps.Animation.DROP
+                            });
+                            markers.push(marker);
+                            google.maps.event.addListener(marker, 'click', (function (marker, i) {
+                                return function () {
+                                    infowindow.setContent('<div class="info_content"><h3>' + data[i].userScreenName + '</h3><p>' + data[i].statusText + '</p></div>');
+                                    infowindow.open(map, marker);
+                                }
+                            })(marker, i));
+                        }
+                        map.fitBounds(bounds);
+                    }
+                    heatmap.setData(pointArray);
+                    $.unblockUI();
+                },
+                error: function () {
+                    $.unblockUI();
+                }
+            });
+        });
+    });
+
+</script>
+</body>
+</html>

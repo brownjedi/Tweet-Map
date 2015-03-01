@@ -15,6 +15,7 @@ public class Tweet {
     private long id;
     private String userScreenName;
     private String userLocation;
+    private String profileImageURL;
     private String statusText;
     private double latitude;
     private double longitude;
@@ -44,6 +45,14 @@ public class Tweet {
 
     public void setUserLocation(String userLocation) {
         this.userLocation = userLocation;
+    }
+
+    public String getProfileImageURL() {
+        return profileImageURL;
+    }
+
+    public void setProfileImageURL(String profileImageURL) {
+        this.profileImageURL = profileImageURL;
     }
 
     public String getStatusText() {

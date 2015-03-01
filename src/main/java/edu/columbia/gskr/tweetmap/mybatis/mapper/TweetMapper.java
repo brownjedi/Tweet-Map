@@ -19,7 +19,7 @@ public interface TweetMapper {
 
     public List<Tweet> getTweetsLimit(int limit);
 
-    public List<Tweet> getTweetsByHashTag(String hashTag);
+    public List<Tweet> getTweetsByHashTag(@Param("hashTags") List<String> hashTags);
 
     public List<String> getAllHashTags();
 

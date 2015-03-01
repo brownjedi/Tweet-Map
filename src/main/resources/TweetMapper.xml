@@ -14,6 +14,7 @@
         <id property="id" column="id"/>
         <result property="userScreenName" column="userScreenName"/>
         <result property="userLocation" column="userLocation"/>
+        <result property="profileImageURL" column="profileImageURL"/>
         <result property="statusText" column="statusText"/>
         <result property="latitude" column="latitude"/>
         <result property="longitude" column="longitude"/>
@@ -24,46 +25,49 @@
     </resultMap>
 
     <select id="getTweetById" parameterType="long" resultMap="TweetResult">
-        select t1.id, t1.userScreenName, t1.userLocation, t1.statusText, t1.latitude, t1.longitude, t1.createdDate, t1.updatedDate, t2.hashTag
+        select t1.id, t1.userScreenName, t1.userLocation, t1.profileImageURL, t1.statusText, t1.latitude, t1.longitude, t1.createdDate, t1.updatedDate, t2.hashTag
         from
         (
-        select id, userScreenName, userLocation, statusText, latitude, longitude, createdDate, updatedDate
+        select id, userScreenName, userLocation, profileImageURL, statusText, latitude, longitude, createdDate, updatedDate
         from Tweets where id = #{id}
         ) as t1 left join HashTags as t2 on t1.id = t2.tweetId;
     </select>
 
 
     <select id="getAllTweets" resultMap="TweetResult">
-        select t1.id, t1.userScreenName, t1.userLocation, t1.statusText, t1.latitude, t1.longitude, t1.createdDate, t1.updatedDate, t2.hashTag
+        select t1.id, t1.userScreenName, t1.userLocation, t1.profileImageURL, t1.statusText, t1.latitude, t1.longitude, t1.createdDate, t1.updatedDate, t2.hashTag
         from
         (
-        select id, userScreenName, userLocation, statusText, latitude, longitude, createdDate, updatedDate
+        select id, userScreenName, userLocation, profileImageURL, statusText, latitude, longitude, createdDate, updatedDate
         from Tweets
         ) as t1 left join HashTags as t2 on t1.id = t2.tweetId;
     </select>
 
 
     <select id="getTweetsLimit" parameterType="int" resultMap="TweetResult">
-        select t1.id, t1.userScreenName, t1.userLocation, t1.statusText, t1.latitude, t1.longitude, t1.createdDate, t1.updatedDate, t2.hashTag
+        select t1.id, t1.userScreenName, t1.userLocation, t1.profileImageURL, t1.statusText, t1.latitude, t1.longitude, t1.createdDate, t1.updatedDate, t2.hashTag
         from
         (
-        select id, userScreenName, userLocation, statusText, latitude, longitude, createdDate, updatedDate
+        select id, userScreenName, userLocation, profileImageURL, statusText, latitude, longitude, createdDate, updatedDate
         from Tweets
         LIMIT #{limit}
         ) as t1 left join HashTags as t2 on t1.id = t2.tweetId;
     </select>
 
 
-    <select id="getTweetsByHashTag" parameterType="String" resultMap="TweetResult">
-        select t1.id, t1.userScreenName, t1.userLocation, t1.statusText, t1.latitude, t1.longitude, t1.createdDate, t1.updatedDate, t2.hashTag
+    <select id="getTweetsByHashTag" parameterType="collection" resultMap="TweetResult">
+        select t1.id, t1.userScreenName, t1.userLocation, t1.profileImageURL, t1.statusText, t1.latitude, t1.longitude, t1.createdDate, t1.updatedDate, t2.hashTag
         from
         (
-        select id, userScreenName, userLocation, statusText, latitude, longitude, createdDate, updatedDate
+        select id, userScreenName, userLocation, profileImageURL, statusText, latitude, longitude, createdDate, updatedDate
         from Tweets
         ) as t1 left join HashTags as t2 on t1.id = t2.tweetId
         where t1.id in (
         select distinct a.id from Tweets as a left join HashTags as b on a.id = b.tweetId
-        where b.hashTag = #{hashTag}
+        where b.hashTag in
+        <foreach item="item" index="index" collection="hashTags" open="(" separator="," close=")">
+            #{item}
+        </foreach>
         );
     </select>
 
@@ -99,6 +103,7 @@
         SET
         userScreenName = #{userScreenName},
         userLocation = #{userLocation},
+        profileImageURL = #{profileImageURL},
         statusText = #{statusText},
         latitude = #{latitude},
         longitude = #{longitude},
@@ -129,8 +134,8 @@
 
     <insert id="insertTweet" parameterType="Tweet" keyProperty="id">
 
-        INSERT INTO Tweets (id, userScreenName, userLocation, statusText, latitude, longitude, createdDate, updatedDate)
-        VALUES (#{id}, #{userScreenName}, #{userLocation}, #{statusText}, #{latitude}, #{longitude}, #{createdDate}, #{updatedDate})
+        INSERT INTO Tweets (id, userScreenName, userLocation, profileImageURL, statusText, latitude, longitude, createdDate, updatedDate)
+        VALUES (#{id}, #{userScreenName}, #{userLocation}, #{profileImageURL}, #{statusText}, #{latitude}, #{longitude}, #{createdDate}, #{updatedDate})
 
     </insert>
 
@@ -169,5 +174,4 @@
         from Tweets where id = #{id};
 
     </select>
-
 </mapper>
