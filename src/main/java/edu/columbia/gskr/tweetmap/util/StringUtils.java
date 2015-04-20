@@ -5,6 +5,7 @@ package edu.columbia.gskr.tweetmap.util;
  */
 
 public class StringUtils {
+
     public static String convertFromUTF8(String s) {
         String out = null;
         try {

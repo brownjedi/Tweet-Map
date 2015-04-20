@@ -20,6 +20,7 @@ public class TweetRestService {
     @GET
     @Produces({MediaType.APPLICATION_JSON})
     public List<Tweet> getTweetsLimit(@QueryParam("limit") int limit, @QueryParam("hashTag") List<String> hashTags) {
+
         if (hashTags != null && hashTags.size() > 0) {
             return tweetService.getTweetsByHashTag(hashTags);
         } else if(limit != 0) {

@@ -25,6 +25,7 @@
     <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
     <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
 </head>
 
 <body>
@@ -44,7 +45,6 @@
 <!-- Bootstrap core JavaScript
 ================================================== -->
 <!-- Placed at the end of the document so the pages load faster -->
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
 <script src="js/bootstrap.min.js"></script>
 <script src="js/chosen.jquery.min.js"></script>
 <script src="js/jquery.blockUI.js"></script>
@@ -57,9 +57,12 @@
         var infowindow;
         var markers = [];
         var map;
+        var webSocket;
         var bounds;
+        var pointArray;
+        var count = 0;
         $("#chz").chosen({max_selected_options: 10});
-        $('#searchbutton').prop('disabled', true);
+        $("#searchbutton").prop('disabled', true);
 
         initializeMaps();
 
@@ -81,7 +84,7 @@
 
             map = new google.maps.Map(document.getElementById("map-canvas"), mapOptions);
 
-            var pointArray = new google.maps.MVCArray([]);
+            pointArray = new google.maps.MVCArray([]);
             heatmap = new google.maps.visualization.HeatmapLayer({
                 data: pointArray
             });
@@ -93,6 +96,69 @@
         }
 
         /* end google maps -----------------------------------------------------*/
+
+
+        function openSocket() {
+
+            // Ensures only one connection is open at a time
+            if (webSocket !== undefined && webSocket.readyState !== WebSocket.CLOSED) {
+                console.log("WebSocket is already opened.");
+                return;
+            }
+            // Create a new instance of the websocket
+
+            if (document.location.pathname.split("/")[1] == ""){
+                //webSocket = new WebSocket("ws://" + document.location.host + ":8080" + "/websockets");
+                webSocket = new WebSocket("ws://localhost:8080" + "/websockets");
+            }else{
+                //webSocket = new WebSocket("ws://" + document.location.host + ":8080" + "/" + document.location.pathname.split("/")[1] + "/websockets");
+                webSocket = new WebSocket("ws://localhost:8080" + "/" + document.location.pathname.split("/")[1] + "/websockets");
+            }
+
+            //webSocket = new WebSocket("ws://52.4.69.196:8080/websockets");
+            //webSocket = new WebSocket("ws://mytweetmap.elasticbeanstalk.com:8080/websockets");
+
+            /**
+             * Binds functions to the listeners for the websocket.
+             */
+            webSocket.onopen = function (event) {
+                console.log("Connection Established");
+            };
+
+            webSocket.onmessage = function (event) {
+
+                if (event.data === undefined)
+                    return;
+
+                console.log(event.data);
+                var eventData = JSON.parse(event.data);
+                var position = new google.maps.LatLng(eventData.latitude, eventData.longitude);
+                pointArray.push(position);
+                bounds.extend(position);
+                var marker = new google.maps.Marker({
+                    position: position,
+                    map: map,
+                    animation: google.maps.Animation.DROP
+                });
+                markers.push(marker);
+                google.maps.event.addListener(marker, 'click', (function (marker) {
+                    return function () {
+                        infowindow.setContent('<div class="info_content"><h3>' + eventData.userScreenName + '</h3><p>' +eventData.statusText + '</p></div>');
+                        infowindow.open(map, marker);
+                    }
+                })(marker));
+                map.fitBounds(bounds);
+            };
+
+            webSocket.onclose = function (event) {
+                console.log("Connection closed");
+            };
+
+            webSocket.onerror = function (event) {
+                console.log(event);
+            };
+
+        }
 
         $.ajax({
             type: 'GET',
@@ -119,8 +185,14 @@
                     for (var i = 0; i < data.length; i++) {
                         $("#chz").append($("<option value=" + data[i] + ">" + data[i] + "</option>"));
                     }
-                    $('#chz').trigger("chosen:updated");
                 }
+                $('#chz').trigger("chosen:updated");
+
+                if(webSocket !== undefined && webSocket.readyState !== WebSocket.CLOSED) {
+                    webSocket.close();
+                }
+
+                openSocket();
                 $.unblockUI();
             },
             error: function () {
@@ -140,17 +212,21 @@
 
         $('#searchbutton').click(function () {
             var temp = $('#chz').val();
+            var temp2;
             var output;
             for (var i = 0; i < temp.length; i++) {
 
                 if (temp[i] == "All") {
                     output = "";
+                    temp2 = "";
                     break;
                 }
 
                 if (i == 0) {
+                    temp2 = temp[i];
                     output = "?hashTag=" + temp[i];
                 } else {
+                    temp2 = temp2 + "," + temp[i];
                     output = output + "&hashTag=" + temp[i];
                 }
             }
@@ -173,7 +249,7 @@
                     });
                 },
                 success: function (data) {
-                    var pointArray = new google.maps.MVCArray([]);
+                    pointArray = new google.maps.MVCArray([]);
                     bounds = new google.maps.LatLngBounds();
                     infowindow = new google.maps.InfoWindow();
 
@@ -204,6 +280,10 @@
                         map.fitBounds(bounds);
                     }
                     heatmap.setData(pointArray);
+
+                    if(webSocket !== undefined && webSocket.readyState !== WebSocket.CLOSED) {
+                        webSocket.send(temp2);
+                    }
                     $.unblockUI();
                 },
                 error: function () {
